@@ -4,6 +4,8 @@ import numpy as np
 from matplotlib.ticker import MaxNLocator
 import time
 import os
+import subprocess
+import re
 
 def execute_traceroute(destination):
     """
@@ -21,7 +23,10 @@ def execute_traceroute(destination):
 
     # Remove this line once you implement the function,
     # and don't forget to *return* the output
-    pass
+
+    output = subprocess.run(["traceroute", "-I", destination], capture_output=True)
+    print(output.stdout.decode())
+    return output.stdout.decode()
 
 def parse_traceroute(traceroute_output):
     """
@@ -67,7 +72,61 @@ def parse_traceroute(traceroute_output):
 
     # Remove this line once you implement the function,
     # and don't forget to *return* the output
-    pass
+    hops = []
+
+    for line in traceroute_output.splitlines():
+        line = line.strip()
+
+        if not line or not re.match(r'^\d+\s', line):
+            continue
+
+        m = re.match(r'^(\d+)\s+(.*)', line)
+        if not m:
+            continue
+        hop_num = int(m.group(1))
+        rest = m.group(2)
+
+        rtts = []
+        for match in re.finditer(r'(?:<)?(\d+(?:\.\d+)?)\s*ms|(\*)', rest):
+            if match.group(1):
+                try:
+                    rtts.append(float(match.group(1)))
+                except ValueError:
+                    rtts.append(None)
+            else:
+                rtts.append(None)
+        
+        while len(rtts) < 3:
+            rtts.append(None)
+        rtts = rtts[:3]
+
+        host_ip_match = re.search(r'(\S+)\s+\((\d{1,3}(?:\.\d{1,3}){3})\)', rest)
+        hostname = None
+        ip = None
+        if host_ip_match:
+            possible_host = host_ip_match.group(1)
+            possible_ip = host_ip_match.group(2)
+            
+            if re.match(r'^\d{1,3}(?:\.\d{1,3}){3}$', possible_host) and possible_host == possible_ip:
+                hostname = None
+            else:
+                hostname = possible_host
+            ip = possible_ip
+        else:
+            tokens = rest.split()
+            if tokens:
+                first = tokens[0]
+                if re.match(r'^\d{1,3}(?:\.\d{1,3}){3}$', first):
+                    ip = first
+
+        hops.append({
+            'hop': hop_num,
+            'ip': ip,
+            'hostname': hostname,
+            'rtt': rtts
+        })
+
+    return hops
 
 # ============================================================================ #
 #                    DO NOT MODIFY THE CODE BELOW THIS LINE                    #
