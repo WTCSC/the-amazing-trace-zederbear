@@ -24,7 +24,7 @@ def execute_traceroute(destination):
     # Remove this line once you implement the function,
     # and don't forget to *return* the output
 
-    output = subprocess.run(["traceroute", destination], capture_output=True)
+    output = subprocess.run(["traceroute", "-I", destination], capture_output=True)
     print(output.stdout.decode())
     return output.stdout.decode()
 
